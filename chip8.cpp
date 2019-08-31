@@ -24,6 +24,7 @@ namespace emu
 	
 	CHIP8::CHIP8()
 		: mRAM{}
+		, mDisplayBuffer{}
 		, mRegisters{}
 		, mPC{}
 		, mI{}
@@ -32,14 +33,18 @@ namespace emu
 	{
 	}
 	
-	bool CHIP8::Load(const ROM& rom)
+	bool CHIP8::Load(const ROM& rom, Program type)
 	{
 		bool loaded = false;
 		const auto& data = rom.GetData();
 		
-		if (data.size() < mRAM.size())
+		// Different types of programs start at different offsets
+		const size_t offset = type == Program::CHIP8 ? 0x200 : 0x600;
+		
+		if (data.size() + offset < mRAM.size())
 		{
-			std::copy(data.begin(), data.end(), mRAM.begin());
+			std::copy(data.begin(), data.end(), mRAM.begin() + offset);
+			mPC = offset;
 			loaded = true;
 		}
 		
@@ -86,12 +91,61 @@ namespace emu
 		printf("\t\tI:  0x%x\n", mI);
 		
 		// Stack
-		printf("\tStack:\n");
+		printf("\tStack (%zu frames):\n", mStack);
 		for (size_t i = 0; i < mStack; i++)
 		{
-			printf("\t\t%zu:\t0x%x", i, mStackFrames[i]);
+			printf("\t\t%zu:\t0x%x\n", i, mStackFrames[i]);
 		}
 	}
+	
+	
+	void CHIP8::Draw()
+	{
+		// Grab the base of the display data
+		const std::byte * displayData = &mRAM[kDisplayStart];
+		
+		// See if anything has changed
+		if (std::memcmp(displayData, mDisplayBuffer.begin(), mDisplayBuffer.size()) == 0)
+		{
+			return;
+		}
+		else
+		{
+			// Update the buffer
+			std::memcpy(mDisplayBuffer.begin(), displayData, mDisplayBuffer.size());
+		}
+		
+		auto border = []()
+		{
+			printf("+");
+			for (size_t x = 0; x < 64; x++)
+			{
+				printf("-");
+			}
+			printf("+\n");
+		};
+		
+		// Print out the pixels of the 64x32 display, with a border
+		border();
+		for (size_t y = 0; y < 32; y++)
+		{
+			printf("|");
+			for (size_t x = 0; x < 64 / 8; x++)
+			{
+				// Since the pixels are encoded as bits we can read a byte and deal with that
+				uint8_t block = static_cast<uint8_t>(*displayData++);
+				for (size_t i = 0; i < 8; i++)
+				{
+					const bool isSet = block & 1;
+					block >>= 1;
+					printf(isSet ? "#" : " ");
+				}
+			}
+			printf("|\n");
+		}
+		border();
+	}
+	
 	
 	void CHIP8::OnError(const char* msg) const
 	{
@@ -130,7 +184,48 @@ namespace emu
 	
 	void CHIP8::Handle_0(Instruction ins)
 	{
-		Unhandled(ins);
+		// Read off the program
+		const Address program = ins & 0x0FFF;
+		
+		switch (program)
+		{
+			case 0x00E0:
+			{
+				// Grab the base of the display data
+				std::byte * displayData = &mRAM[kDisplayStart];
+				
+				// Clear it all
+				std::memset(displayData, 0, kDisplaySize);
+			}
+			break;
+			
+			
+			case 0x00EE:
+			{
+				// Pop the return address from the stack
+				if (mStack == 0)
+				{
+					OnError("Out of stack frames");
+				}
+				mStack--;
+				const Address address = mStackFrames[mStack];
+				
+				// Check the address hasn't been corrupted somehow
+				if (address >= mRAM.size())
+				{
+					OnError("Invalid address on stack");
+				}
+				
+				// Update PC
+				mPC = address;
+			}
+			break;
+			
+			
+			default:
+				Unhandled(ins);
+				break;
+		}
 	}
 	
 	void CHIP8::Handle_1(Instruction ins)
@@ -144,22 +239,85 @@ namespace emu
 	
 	void CHIP8::Handle_2(Instruction ins)
 	{
-		Unhandled(ins);
+		// Read off the address
+		const Address address = ins & 0x0FFF;
+		
+		// Push the current return address onto the stack
+		if (mStack + 1 > mStackFrames.size())
+		{
+			OnError("Out of stack frames");
+		}
+		mStackFrames[mStack] = mPC;
+		mStack++;
+		
+		// Update PC
+		mPC = address;
 	}
 	
 	void CHIP8::Handle_3(Instruction ins)
 	{
-		Unhandled(ins);
+		// Read off the register and value
+		const uint8_t reg = (ins >> 16) & 0x0F;
+		const uint8_t val = (ins >>  0) & 0xFF;
+		
+		if (mRegisters[reg] == val)
+		{
+			// Skip an instruction
+			if (mPC + sizeof(Instruction) >= mRAM.size())
+			{
+				OnError("Branching outside of RAM");
+			}
+			mPC += sizeof(Instruction);
+		}
 	}
 	
 	void CHIP8::Handle_4(Instruction ins)
 	{
-		Unhandled(ins);
+		// Read off the register and value
+		const uint8_t reg = (ins >> 16) & 0x0F;
+		const uint8_t val = (ins >>  0) & 0xFF;
+		
+		if (mRegisters[reg] != val)
+		{
+			// Skip an instruction
+			if (mPC + sizeof(Instruction) >= mRAM.size())
+			{
+				OnError("Branching outside of RAM");
+			}
+			mPC += sizeof(Instruction);
+		}
 	}
 	
 	void CHIP8::Handle_5(Instruction ins)
 	{
-		Unhandled(ins);
+		// Read off the registers and op
+		const uint8_t rx = (ins >> 16) & 0x0F;
+		const uint8_t ry = (ins >>  8) & 0x0F;
+		const uint8_t op = (ins >>  0) & 0x0F;
+		
+		const uint8_t x = mRegisters[rx];
+		const uint8_t y = mRegisters[ry];
+		
+		switch (op)
+		{
+			case 0x0:
+			{
+				if (x == y)
+				{
+					// Skip an instruction
+					if (mPC + sizeof(Instruction) >= mRAM.size())
+					{
+						OnError("Branching outside of RAM");
+					}
+					mPC += sizeof(Instruction);
+				}
+			}
+			break;
+			
+			default:
+				Unhandled(ins);
+				break;
+		}
 	}
 	
 	void CHIP8::Handle_6(Instruction ins)
@@ -184,12 +342,96 @@ namespace emu
 	
 	void CHIP8::Handle_8(Instruction ins)
 	{
-		Unhandled(ins);
+		// Read off the registers and op
+		const uint8_t rx = (ins >> 16) & 0x0F;
+		const uint8_t ry = (ins >>  8) & 0x0F;
+		const uint8_t op = (ins >>  0) & 0x0F;
+		
+		uint8_t& x = mRegisters[rx];
+		const uint8_t y = mRegisters[ry];
+		
+		switch (op)
+		{
+			case 0x0:	x  = y;		break;
+			case 0x1:	x |= y;		break;
+			case 0x2:	x &= y;		break;
+			case 0x3:	x ^= y;		break;
+			
+			case 0x4:
+			{
+				// TODO: check ordering here
+				const bool carry = x + y > 0xFF;
+				x += y;
+				mRegisters[0xF] = carry ? 1 : 0;
+			}
+			break;
+			
+			case 0x5:
+			{
+				// TODO: check ordering here
+				const bool borrow = x - y < 0;
+				x += y;
+				mRegisters[0xF] = borrow ? 0 : 1;
+			}
+			break;
+			
+			case 0x7:
+			{
+				// TODO: check ordering here
+				const bool borrow = y - x < 0;
+				x = y - x;
+				mRegisters[0xF] = borrow ? 0 : 1;
+			}
+			break;
+			
+			
+			case 0x6:
+				mRegisters[0xF] = (x >> 0) & 1;
+				x >>= 1;
+				break;
+			
+			case 0xE:
+				mRegisters[0xF] = (x >> 7) & 1;
+				x <<= 1;
+				break;
+			
+			
+			default:
+				Unhandled(ins);
+				break;
+		}
 	}
 	
 	void CHIP8::Handle_9(Instruction ins)
 	{
-		Unhandled(ins);
+		// Read off the registers and op
+		const uint8_t rx = (ins >> 16) & 0x0F;
+		const uint8_t ry = (ins >>  8) & 0x0F;
+		const uint8_t op = (ins >>  0) & 0x0F;
+		
+		const uint8_t x = mRegisters[rx];
+		const uint8_t y = mRegisters[ry];
+		
+		switch (op)
+		{
+			case 0x0:
+			{
+				if (x != y)
+				{
+					// Skip an instruction
+					if (mPC + sizeof(Instruction) >= mRAM.size())
+					{
+						OnError("Branching outside of RAM");
+					}
+					mPC += sizeof(Instruction);
+				}
+			}
+			break;
+			
+			default:
+				Unhandled(ins);
+				break;
+		}
 	}
 	
 	void CHIP8::Handle_A(Instruction ins)
@@ -203,17 +445,97 @@ namespace emu
 	
 	void CHIP8::Handle_B(Instruction ins)
 	{
-		Unhandled(ins);
+		// Read off the address
+		const Address address = ins & 0x0FFF;
+		
+		if (mRegisters[0] + address > mRAM.size())
+		{
+			OnError("Trying to jump out of RAM");
+		}
+		
+		// Update PC
+		mPC = mRegisters[0] + address;
 	}
 	
 	void CHIP8::Handle_C(Instruction ins)
 	{
-		Unhandled(ins);
+		// Read off the register and value
+		const uint8_t reg = (ins >> 16) & 0x0F;
+		const uint8_t max = (ins >>  0) & 0xFF;
+		
+		// Generate the random number
+		const uint8_t val = rand() & max;
+		
+		// Update the register
+		mRegisters[reg] = val;
 	}
 	
 	void CHIP8::Handle_D(Instruction ins)
 	{
-		Unhandled(ins);
+		// Read off VX, VY, and N
+		const uint8_t vx = (ins >> 16) & 0x0F;
+		const uint8_t vy = (ins >>  8) & 0x0F;
+		const size_t n   = (ins >>  0) & 0x0F;
+		
+		// Read X and Y from the registers
+		const size_t baseX = mRegisters[vx];
+		const size_t baseY = mRegisters[vy];
+		
+		// Grab the base of the display data
+		uint8_t * displayData = reinterpret_cast<uint8_t*>(&mRAM[kDisplayStart]);
+		
+		// Grab the base of where we're blitting from
+		const uint8_t * srcData = reinterpret_cast<uint8_t*>(&mRAM[mI]);
+		
+		// Sanity check where we're blitting from
+		if (mI + n >= mRAM.size())
+		{
+			OnError("Blitting from outside of RAM");
+		}
+		
+		// Do the blit
+		bool flippedOff = false;
+		for (size_t dispY = baseY; dispY < baseY + n; dispY++)
+		{
+			for (size_t srcX = 0; srcX < 8; srcX++)
+			{
+				const size_t dispX = srcX + baseX;
+				
+				// Only do the blit if the pixel is visible
+				// TODO: this could be in a more optimal location
+				if (dispX < 64 && dispY < 32)
+				{
+					// Calculate where in memory we need to blit to
+					const size_t pixelNum = dispY * 64 + dispX;
+					const size_t pixelBlockNum = pixelNum / 8;
+					const size_t pixelBlockBit = pixelNum - 8 * pixelBlockNum;
+					
+					// Read the destination block
+					uint8_t dstBlock = displayData[pixelBlockNum];
+					
+					// Read the relevant src bit
+					const bool srcBit = *srcData & (1 << srcX);
+					
+					// Raise the flag if required
+					const uint8_t dstBit = dstBlock & (1 << pixelBlockBit);
+					if (srcBit && dstBit)
+					{
+						flippedOff = true;
+					}
+					
+					// Flip the pixel
+					dstBlock ^= (srcBit ? 1 : 0) << pixelBlockBit;
+					
+					// Save it back
+					displayData[pixelBlockNum] = dstBlock;
+				}
+			}
+			
+			srcData++;
+		}
+		
+		// Store the result of the flips in VF
+		mRegisters[0xF] = flippedOff ? 1 : 0;
 	}
 	
 	void CHIP8::Handle_E(Instruction ins)
@@ -223,6 +545,49 @@ namespace emu
 	
 	void CHIP8::Handle_F(Instruction ins)
 	{
-		Unhandled(ins);
+		// Read off the register and op
+		const uint8_t reg = (ins >> 16) & 0x0F;
+		const uint8_t op  = (ins >>  0) & 0xFF;
+		
+		uint8_t& val = mRegisters[reg];
+		
+		switch (op)
+		{
+			case 0x1E:
+			{
+				if (mI + val > mRAM.size())
+				{
+					OnError("Moving I to outside of RAM");
+				}
+				mI += val;
+			}
+			break;
+			
+			
+			case 0x55:
+			{
+				if (mI + val > mRAM.size())
+				{
+					OnError("Copying to I outside of RAM");
+				}
+				std::memcpy(&mRAM[mI], &mRegisters[0], val);
+			}
+			break;
+			
+			case 0x65:
+			{
+				if (mI + val > mRAM.size())
+				{
+					OnError("Copying from I outside of RAM");
+				}
+				std::memcpy(&mRegisters[0], &mRAM[mI], val);
+			}
+			break;
+			
+			
+			default:
+				Unhandled(ins);
+				break;
+		}
 	}
 }

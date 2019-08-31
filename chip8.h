@@ -22,11 +22,20 @@ namespace emu
 	class CHIP8
 	{
 	public:
+		enum class Program
+		{
+			CHIP8,
+			ETI660,
+		};
+		
+	public:
 		CHIP8();
 		
-		bool Load(const ROM&);
+	public:
+		bool Load(const ROM& rom, Program type);
 		void Step(std::size_t instructions);
 		void Dump() const;
+		void Draw();
 		
 	private:
 		using Address = uint16_t;
@@ -34,12 +43,15 @@ namespace emu
 		using Register = uint8_t;
 		
 	private:
+		static constexpr Address kDisplayStart = 0x0F00;
+		static constexpr Address kDisplaySize = 0x00FF;
+		
+	private:
 		[[noreturn]] void OnError(const char * msg) const;
 		Instruction ReadInstruction();
 		
-		
 	private:
-		void Unhandled(Instruction);
+		[[noreturn]] void Unhandled(Instruction);
 		void Handle_0(Instruction);
 		void Handle_1(Instruction);
 		void Handle_2(Instruction);
@@ -57,9 +69,9 @@ namespace emu
 		void Handle_E(Instruction);
 		void Handle_F(Instruction);
 		
-		
 	private:
 		std::array<std::byte, 4096> mRAM;
+		std::array<std::byte, kDisplaySize> mDisplayBuffer;
 		
 		std::array<Register, 16> mRegisters;
 		Address mPC;

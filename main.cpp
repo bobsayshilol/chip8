@@ -58,16 +58,19 @@ int main(int argc, char**argv)
 	
 	// Load the ROM into the emulator
 	emu::CHIP8 chip8;
-	if (!chip8.Load(rom))
+	if (!chip8.Load(rom, emu::CHIP8::Program::CHIP8))
 	{
 		printf("Failed to load ROM into emulator.\n");
 		return 1;
 	}
 	
 	// Run it
+	size_t step = 0;
 	while (true)
 	{
 		chip8.Step(1);
+		chip8.Draw();
+		step++;
 	}
 	
 	
