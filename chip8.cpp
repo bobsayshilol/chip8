@@ -118,19 +118,19 @@ namespace emu
 		auto border = []()
 		{
 			printf("+");
-			for (size_t x = 0; x < 64; x++)
+			for (size_t x = 0; x < kDisplayWidth; x++)
 			{
 				printf("-");
 			}
 			printf("+\n");
 		};
 		
-		// Print out the pixels of the 64x32 display, with a border
+		// Print out the pixel display with a border
 		border();
-		for (size_t y = 0; y < 32; y++)
+		for (size_t y = 0; y < kDisplayHeight; y++)
 		{
 			printf("|");
-			for (size_t x = 0; x < 64 / 8; x++)
+			for (size_t x = 0; x < kDisplayWidth / 8; x++)
 			{
 				// Since the pixels are encoded as bits we can read a byte and deal with that
 				uint8_t block = static_cast<uint8_t>(*displayData++);
@@ -257,8 +257,8 @@ namespace emu
 	void CHIP8::Handle_3(Instruction ins)
 	{
 		// Read off the register and value
-		const uint8_t reg = (ins >> 16) & 0x0F;
-		const uint8_t val = (ins >>  0) & 0xFF;
+		const uint8_t reg = (ins >> 8) & 0x0F;
+		const uint8_t val = (ins >> 0) & 0xFF;
 		
 		if (mRegisters[reg] == val)
 		{
@@ -274,8 +274,8 @@ namespace emu
 	void CHIP8::Handle_4(Instruction ins)
 	{
 		// Read off the register and value
-		const uint8_t reg = (ins >> 16) & 0x0F;
-		const uint8_t val = (ins >>  0) & 0xFF;
+		const uint8_t reg = (ins >> 8) & 0x0F;
+		const uint8_t val = (ins >> 0) & 0xFF;
 		
 		if (mRegisters[reg] != val)
 		{
@@ -291,9 +291,9 @@ namespace emu
 	void CHIP8::Handle_5(Instruction ins)
 	{
 		// Read off the registers and op
-		const uint8_t rx = (ins >> 16) & 0x0F;
-		const uint8_t ry = (ins >>  8) & 0x0F;
-		const uint8_t op = (ins >>  0) & 0x0F;
+		const uint8_t rx = (ins >> 8) & 0x0F;
+		const uint8_t ry = (ins >> 4) & 0x0F;
+		const uint8_t op = (ins >> 0) & 0x0F;
 		
 		const uint8_t x = mRegisters[rx];
 		const uint8_t y = mRegisters[ry];
@@ -323,8 +323,8 @@ namespace emu
 	void CHIP8::Handle_6(Instruction ins)
 	{
 		// Read off the register and value
-		const uint8_t reg = (ins >> 16) & 0x0F;
-		const uint8_t val = (ins >>  0) & 0xFF;
+		const uint8_t reg = (ins >> 8) & 0x0F;
+		const uint8_t val = (ins >> 0) & 0xFF;
 		
 		// Update the register
 		mRegisters[reg] = val;
@@ -333,8 +333,8 @@ namespace emu
 	void CHIP8::Handle_7(Instruction ins)
 	{
 		// Read off the register and value
-		const uint8_t reg = (ins >> 16) & 0x0F;
-		const uint8_t val = (ins >>  0) & 0xFF;
+		const uint8_t reg = (ins >> 8) & 0x0F;
+		const uint8_t val = (ins >> 0) & 0xFF;
 		
 		// Update the register
 		mRegisters[reg] += val;
@@ -343,9 +343,9 @@ namespace emu
 	void CHIP8::Handle_8(Instruction ins)
 	{
 		// Read off the registers and op
-		const uint8_t rx = (ins >> 16) & 0x0F;
-		const uint8_t ry = (ins >>  8) & 0x0F;
-		const uint8_t op = (ins >>  0) & 0x0F;
+		const uint8_t rx = (ins >> 8) & 0x0F;
+		const uint8_t ry = (ins >> 4) & 0x0F;
+		const uint8_t op = (ins >> 0) & 0x0F;
 		
 		uint8_t& x = mRegisters[rx];
 		const uint8_t y = mRegisters[ry];
@@ -369,7 +369,7 @@ namespace emu
 			case 0x5:
 			{
 				// TODO: check ordering here
-				const bool borrow = x - y < 0;
+				const bool borrow = x < y;
 				x += y;
 				mRegisters[0xF] = borrow ? 0 : 1;
 			}
@@ -378,7 +378,7 @@ namespace emu
 			case 0x7:
 			{
 				// TODO: check ordering here
-				const bool borrow = y - x < 0;
+				const bool borrow = y < x;
 				x = y - x;
 				mRegisters[0xF] = borrow ? 0 : 1;
 			}
@@ -405,9 +405,9 @@ namespace emu
 	void CHIP8::Handle_9(Instruction ins)
 	{
 		// Read off the registers and op
-		const uint8_t rx = (ins >> 16) & 0x0F;
-		const uint8_t ry = (ins >>  8) & 0x0F;
-		const uint8_t op = (ins >>  0) & 0x0F;
+		const uint8_t rx = (ins >> 8) & 0x0F;
+		const uint8_t ry = (ins >> 4) & 0x0F;
+		const uint8_t op = (ins >> 0) & 0x0F;
 		
 		const uint8_t x = mRegisters[rx];
 		const uint8_t y = mRegisters[ry];
@@ -460,8 +460,8 @@ namespace emu
 	void CHIP8::Handle_C(Instruction ins)
 	{
 		// Read off the register and value
-		const uint8_t reg = (ins >> 16) & 0x0F;
-		const uint8_t max = (ins >>  0) & 0xFF;
+		const uint8_t reg = (ins >> 8) & 0x0F;
+		const uint8_t max = (ins >> 0) & 0xFF;
 		
 		// Generate the random number
 		const uint8_t val = rand() & max;
@@ -473,9 +473,9 @@ namespace emu
 	void CHIP8::Handle_D(Instruction ins)
 	{
 		// Read off VX, VY, and N
-		const uint8_t vx = (ins >> 16) & 0x0F;
-		const uint8_t vy = (ins >>  8) & 0x0F;
-		const size_t n   = (ins >>  0) & 0x0F;
+		const uint8_t vx = (ins >> 8) & 0x0F;
+		const uint8_t vy = (ins >> 4) & 0x0F;
+		const size_t n   = (ins >> 0) & 0x0F;
 		
 		// Read X and Y from the registers
 		const size_t baseX = mRegisters[vx];
@@ -503,10 +503,10 @@ namespace emu
 				
 				// Only do the blit if the pixel is visible
 				// TODO: this could be in a more optimal location
-				if (dispX < 64 && dispY < 32)
+				if (dispX < kDisplayWidth && dispY < kDisplayHeight)
 				{
 					// Calculate where in memory we need to blit to
-					const size_t pixelNum = dispY * 64 + dispX;
+					const size_t pixelNum = dispY * kDisplayWidth + dispX;
 					const size_t pixelBlockNum = pixelNum / 8;
 					const size_t pixelBlockBit = pixelNum - 8 * pixelBlockNum;
 					
@@ -546,8 +546,8 @@ namespace emu
 	void CHIP8::Handle_F(Instruction ins)
 	{
 		// Read off the register and op
-		const uint8_t reg = (ins >> 16) & 0x0F;
-		const uint8_t op  = (ins >>  0) & 0xFF;
+		const uint8_t reg = (ins >> 8) & 0x0F;
+		const uint8_t op  = (ins >> 0) & 0xFF;
 		
 		uint8_t& val = mRegisters[reg];
 		

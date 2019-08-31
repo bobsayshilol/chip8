@@ -45,6 +45,8 @@ namespace emu
 	private:
 		static constexpr Address kDisplayStart = 0x0F00;
 		static constexpr Address kDisplaySize = 0x00FF;
+		static constexpr size_t kDisplayWidth = 64;
+		static constexpr size_t kDisplayHeight = 32;
 		
 	private:
 		[[noreturn]] void OnError(const char * msg) const;
