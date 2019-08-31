@@ -136,8 +136,7 @@ namespace emu
 				uint8_t block = static_cast<uint8_t>(*displayData++);
 				for (size_t i = 0; i < 8; i++)
 				{
-					const bool isSet = block & 1;
-					block >>= 1;
+					const bool isSet = block & (1 << (7 - i));
 					printf(isSet ? "#" : " ");
 				}
 			}
@@ -508,13 +507,15 @@ namespace emu
 					// Calculate where in memory we need to blit to
 					const size_t pixelNum = dispY * kDisplayWidth + dispX;
 					const size_t pixelBlockNum = pixelNum / 8;
-					const size_t pixelBlockBit = pixelNum - 8 * pixelBlockNum;
+					
+					// Pixels are backwards, ie highest bit comes first
+					const size_t pixelBlockBit = 7 - (pixelNum - 8 * pixelBlockNum);
 					
 					// Read the destination block
 					uint8_t dstBlock = displayData[pixelBlockNum];
 					
 					// Read the relevant src bit
-					const bool srcBit = *srcData & (1 << srcX);
+					const bool srcBit = *srcData & (1 << (7 - srcX));
 					
 					// Raise the flag if required
 					const uint8_t dstBit = dstBlock & (1 << pixelBlockBit);
