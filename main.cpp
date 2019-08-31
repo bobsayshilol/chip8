@@ -69,6 +69,7 @@ int main(int argc, char**argv)
 	while (true)
 	{
 		chip8.Step(1);
+		//chip8.Dump();
 		chip8.Draw();
 		step++;
 	}

@@ -549,12 +549,11 @@ namespace emu
 		const uint8_t reg = (ins >> 8) & 0x0F;
 		const uint8_t op  = (ins >> 0) & 0xFF;
 		
-		uint8_t& val = mRegisters[reg];
-		
 		switch (op)
 		{
 			case 0x1E:
 			{
+				const uint8_t val = mRegisters[reg];
 				if (mI + val > mRAM.size())
 				{
 					OnError("Moving I to outside of RAM");
@@ -566,21 +565,21 @@ namespace emu
 			
 			case 0x55:
 			{
-				if (mI + val > mRAM.size())
+				if (mI + reg > mRAM.size())
 				{
 					OnError("Copying to I outside of RAM");
 				}
-				std::memcpy(&mRAM[mI], &mRegisters[0], val);
+				std::memcpy(&mRAM[mI], &mRegisters[0], reg);
 			}
 			break;
 			
 			case 0x65:
 			{
-				if (mI + val > mRAM.size())
+				if (mI + reg > mRAM.size())
 				{
 					OnError("Copying from I outside of RAM");
 				}
-				std::memcpy(&mRegisters[0], &mRAM[mI], val);
+				std::memcpy(&mRegisters[0], &mRAM[mI], reg);
 			}
 			break;
 			
