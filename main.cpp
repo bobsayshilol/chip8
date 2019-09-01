@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <fstream>
 #include <memory>
+#include <thread>
 
 #include "chip8.h"
 
@@ -70,8 +71,21 @@ int main(int argc, char**argv)
 	{
 		chip8.Step(1);
 		//chip8.Dump();
-		chip8.Draw();
+		if (chip8.NeedsRedraw())
+		{
+			chip8.Draw();
+		}
 		step++;
+		
+		// Run this at ~1kHz
+		using namespace std::chrono_literals;
+		std::this_thread::sleep_for(1ms);
+		
+		// ~1kHz / 20 == ~50Hz ~= 60Hz
+		if ((step % 20) == 19)
+		{
+			chip8.Tick();
+		}
 	}
 	
 	

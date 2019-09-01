@@ -34,7 +34,10 @@ namespace emu
 	public:
 		bool Load(const ROM& rom, Program type);
 		void Step(std::size_t instructions);
+		void Tick();
+		bool PlayingSound() const { return mSoundTimer > 0; }
 		void Dump() const;
+		bool NeedsRedraw() const;
 		void Draw();
 		
 	private:
@@ -78,6 +81,9 @@ namespace emu
 		std::array<Register, 16> mRegisters;
 		Address mPC;
 		Address mI;
+		
+		Register mDelayTimer;
+		Register mSoundTimer;
 		
 		std::array<Address, 24> mStackFrames;
 		size_t mStack;

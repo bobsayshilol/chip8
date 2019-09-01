@@ -28,6 +28,8 @@ namespace emu
 		, mRegisters{}
 		, mPC{}
 		, mI{}
+		, mDelayTimer{}
+		, mSoundTimer{}
 		, mStackFrames{}
 		, mStack{}
 	{
@@ -73,6 +75,19 @@ namespace emu
 		}
 	}
 	
+	void CHIP8::Tick()
+	{
+		if (mDelayTimer > 0)
+		{
+			mDelayTimer--;
+		}
+		
+		if (mSoundTimer > 0)
+		{
+			mSoundTimer--;
+		}
+	}
+	
 	void CHIP8::Dump() const
 	{
 		printf("CHIP-8 state:\n");
@@ -81,39 +96,43 @@ namespace emu
 		printf("\tRegisters:\n");
 		for (size_t i = 0; i < mRegisters.size(); i++)
 		{
-			printf("\t\tV%zX: 0x%x", i, mRegisters[i]);
+			printf("\t\tV%zX: 0x%02x", i, mRegisters[i]);
 			if ((i & 3) == 3)
 			{
 				printf("\n");
 			}
 		}
-		printf("\t\tPC: 0x%x", mPC);
-		printf("\t\tI:  0x%x\n", mI);
+		printf("\t\tPC: 0x%02x", mPC);
+		printf("\t\tI:  0x%02x", mI);
+		printf("\t\tD:  0x%02x", mDelayTimer);
+		printf("\t\tS:  0x%02x", mSoundTimer);
+		printf("\n");
 		
 		// Stack
 		printf("\tStack (%zu frames):\n", mStack);
 		for (size_t i = 0; i < mStack; i++)
 		{
-			printf("\t\t%zu:\t0x%x\n", i, mStackFrames[i]);
+			printf("\t\t%zu:\t0x%03x\n", i, mStackFrames[i]);
 		}
 	}
 	
+	
+	bool CHIP8::NeedsRedraw() const
+	{
+		// Grab the base of the display data
+		const std::byte * displayData = &mRAM[kDisplayStart];
+		
+		// See if anything has changed
+		return std::memcmp(displayData, mDisplayBuffer.begin(), mDisplayBuffer.size()) != 0;
+	}
 	
 	void CHIP8::Draw()
 	{
 		// Grab the base of the display data
 		const std::byte * displayData = &mRAM[kDisplayStart];
 		
-		// See if anything has changed
-		if (std::memcmp(displayData, mDisplayBuffer.begin(), mDisplayBuffer.size()) == 0)
-		{
-			return;
-		}
-		else
-		{
-			// Update the buffer
-			std::memcpy(mDisplayBuffer.begin(), displayData, mDisplayBuffer.size());
-		}
+		// Update the cached buffer
+		std::memcpy(mDisplayBuffer.begin(), displayData, mDisplayBuffer.size());
 		
 		auto border = []()
 		{
@@ -550,11 +569,31 @@ namespace emu
 		const uint8_t reg = (ins >> 8) & 0x0F;
 		const uint8_t op  = (ins >> 0) & 0xFF;
 		
+		uint8_t& val = mRegisters[reg];
+		
 		switch (op)
 		{
+			case 0x07:
+			{
+				val = mDelayTimer;
+			}
+			break;
+			
+			case 0x15:
+			{
+				mDelayTimer = val;
+			}
+			break;
+			
+			case 0x18:
+			{
+				mSoundTimer = val;
+			}
+			break;
+			
+			
 			case 0x1E:
 			{
-				const uint8_t val = mRegisters[reg];
 				if (mI + val > mRAM.size())
 				{
 					OnError("Moving I to outside of RAM");
