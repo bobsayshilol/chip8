@@ -758,7 +758,7 @@ namespace emu
 				{
 					OnError("Copying to I outside of RAM");
 				}
-				std::memcpy(&mRAM[mI], &mRegisters[0], reg);
+				std::memcpy(&mRAM[mI], &mRegisters[0], reg + 1);
 			}
 			break;
 			
@@ -768,7 +768,7 @@ namespace emu
 				{
 					OnError("Copying from I outside of RAM");
 				}
-				std::memcpy(&mRegisters[0], &mRAM[mI], reg);
+				std::memcpy(&mRegisters[0], &mRAM[mI], reg + 1);
 			}
 			break;
 			
