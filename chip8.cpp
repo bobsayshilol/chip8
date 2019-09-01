@@ -637,42 +637,39 @@ namespace emu
 		
 		// Do the blit
 		bool flippedOff = false;
-		for (size_t dispY = baseY; dispY < baseY + n; dispY++)
+		for (size_t srcY = 0; srcY < n; srcY++)
 		{
 			for (size_t srcX = 0; srcX < 8; srcX++)
 			{
-				const size_t dispX = srcX + baseX;
+				// Out of bounds wraps
+				const size_t dispX = (srcX + baseX) % kDisplayWidth;
+				const size_t dispY = (srcY + baseY) % kDisplayHeight;
 				
-				// Only do the blit if the pixel is visible
-				// TODO: this could be in a more optimal location
-				if (dispX < kDisplayWidth && dispY < kDisplayHeight)
+				// Calculate where in memory we need to blit to
+				const size_t pixelNum = dispY * kDisplayWidth + dispX;
+				const size_t pixelBlockNum = pixelNum / 8;
+				
+				// Pixels are backwards, ie highest bit comes first
+				const size_t pixelBlockBit = 7 - (pixelNum - 8 * pixelBlockNum);
+				
+				// Read the destination block
+				uint8_t dstBlock = displayData[pixelBlockNum];
+				
+				// Read the relevant src bit
+				const bool srcBit = *srcData & (1 << (7 - srcX));
+				
+				// Raise the flag if required
+				const bool dstBit = dstBlock & (1 << pixelBlockBit);
+				if (srcBit && dstBit)
 				{
-					// Calculate where in memory we need to blit to
-					const size_t pixelNum = dispY * kDisplayWidth + dispX;
-					const size_t pixelBlockNum = pixelNum / 8;
-					
-					// Pixels are backwards, ie highest bit comes first
-					const size_t pixelBlockBit = 7 - (pixelNum - 8 * pixelBlockNum);
-					
-					// Read the destination block
-					uint8_t dstBlock = displayData[pixelBlockNum];
-					
-					// Read the relevant src bit
-					const bool srcBit = *srcData & (1 << (7 - srcX));
-					
-					// Raise the flag if required
-					const uint8_t dstBit = dstBlock & (1 << pixelBlockBit);
-					if (srcBit && dstBit)
-					{
-						flippedOff = true;
-					}
-					
-					// Flip the pixel
-					dstBlock ^= (srcBit ? 1 : 0) << pixelBlockBit;
-					
-					// Save it back
-					displayData[pixelBlockNum] = dstBlock;
+					flippedOff = true;
 				}
+				
+				// Flip the pixel
+				dstBlock ^= (srcBit ? 1 : 0) << pixelBlockBit;
+				
+				// Save it back
+				displayData[pixelBlockNum] = dstBlock;
 			}
 			
 			srcData++;
