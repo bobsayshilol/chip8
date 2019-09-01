@@ -52,6 +52,9 @@ namespace emu
 		static constexpr size_t kDisplayHeight = 32;
 		
 	private:
+		static constexpr Address kCharacterSpritesStart = 0x0010;
+		
+	private:
 		[[noreturn]] void OnError(const char * msg) const;
 		Instruction ReadInstruction();
 		
