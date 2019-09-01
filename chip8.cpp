@@ -96,16 +96,21 @@ namespace emu
 		printf("\tRegisters:\n");
 		for (size_t i = 0; i < mRegisters.size(); i++)
 		{
-			printf("\t\tV%zX: 0x%02x", i, mRegisters[i]);
+			if ((i & 3) == 0)
+			{
+				printf("\t");
+			}
+			printf("\tV%zX: 0x%02x", i, mRegisters[i]);
 			if ((i & 3) == 3)
 			{
 				printf("\n");
 			}
 		}
-		printf("\t\tPC: 0x%02x", mPC);
-		printf("\t\tI:  0x%02x", mI);
-		printf("\t\tD:  0x%02x", mDelayTimer);
-		printf("\t\tS:  0x%02x", mSoundTimer);
+		printf("\t");
+		printf("\tPC: 0x%02x", mPC);
+		printf("\tI:  0x%02x", mI);
+		printf("\tD:  0x%02x", mDelayTimer);
+		printf("\tS:  0x%02x", mSoundTimer);
 		printf("\n");
 		
 		// Stack
