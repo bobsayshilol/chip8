@@ -499,7 +499,7 @@ namespace emu
 			
 			case 0x4:
 			{
-				// TODO: check ordering here
+				if (rx == 0xF || ry == 0xF) OnError("Ordering");
 				const bool carry = x + y > 0xFF;
 				x += y;
 				mRegisters[0xF] = carry ? 1 : 0;
@@ -508,7 +508,7 @@ namespace emu
 			
 			case 0x5:
 			{
-				// TODO: check ordering here
+				if (rx == 0xF || ry == 0xF) OnError("Ordering");
 				const bool borrow = x < y;
 				x += y;
 				mRegisters[0xF] = borrow ? 0 : 1;
@@ -517,7 +517,7 @@ namespace emu
 			
 			case 0x7:
 			{
-				// TODO: check ordering here
+				if (rx == 0xF || ry == 0xF) OnError("Ordering");
 				const bool borrow = y < x;
 				x = y - x;
 				mRegisters[0xF] = borrow ? 0 : 1;
@@ -526,11 +526,13 @@ namespace emu
 			
 			
 			case 0x6:
+				if (rx == 0xF || ry == 0xF) OnError("Ordering");
 				mRegisters[0xF] = (x >> 0) & 1;
 				x >>= 1;
 				break;
 			
 			case 0xE:
+				if (rx == 0xF || ry == 0xF) OnError("Ordering");
 				mRegisters[0xF] = (x >> 7) & 1;
 				x <<= 1;
 				break;
