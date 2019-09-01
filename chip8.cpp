@@ -144,6 +144,8 @@ namespace emu
 		, mI{}
 		, mDelayTimer{}
 		, mSoundTimer{}
+		, mKeyboard{}
+		, mKeyboardRegister{0xFF}
 		, mStackFrames{}
 		, mStack{}
 	{
@@ -174,6 +176,28 @@ namespace emu
 	{
 		for (size_t i = 0; i < instructions; i++)
 		{
+			// Wait for input if we need to
+			if (mKeyboardRegister != 0xFF)
+			{
+				if (!mKeyboard.any())
+				{
+					// No button presses yet
+					break;
+				}
+				else
+				{
+					// Find the button that is pressed
+					for (size_t i = 0; i < mKeyboard.size(); i++)
+					{
+						if (mKeyboard[i])
+						{
+							mRegisters[mKeyboardRegister] = i;
+							mKeyboardRegister = 0xFF;
+						}
+					}
+				}
+			}
+			
 			// Read the next instruction
 			const Instruction ins = ReadInstruction();
 			
@@ -681,7 +705,49 @@ namespace emu
 	
 	void CHIP8::Handle_E(Instruction ins)
 	{
-		Unhandled(ins);
+		// Read off the register and op
+		const uint8_t reg = (ins >> 8) & 0x0F;
+		const uint8_t op  = (ins >> 0) & 0xFF;
+		
+		uint8_t& val = mRegisters[reg];
+		
+		switch (op)
+		{
+			case 0x9E:
+			{
+				if (val >= mKeyboard.size())
+				{
+					OnError("Invalid key code requested");
+				}
+				
+				if (mKeyboard[val])
+				{
+					// Skip the next instruction
+					mPC += sizeof(Instruction);
+				}
+			}
+			break;
+			
+			case 0xA1:
+			{
+				if (val >= mKeyboard.size())
+				{
+					OnError("Invalid key code requested");
+				}
+				
+				if (!mKeyboard[val])
+				{
+					// Skip the next instruction
+					mPC += sizeof(Instruction);
+				}
+			}
+			break;
+			
+			
+			default:
+				Unhandled(ins);
+				break;
+		}
 	}
 	
 	void CHIP8::Handle_F(Instruction ins)
@@ -697,6 +763,14 @@ namespace emu
 			case 0x07:
 			{
 				val = mDelayTimer;
+			}
+			break;
+			
+			case 0x0A:
+			{
+				// Save the register we want the key press to be saved to.
+				// This will be handled on the next call to Step().
+				mKeyboardRegister = reg;
 			}
 			break;
 			

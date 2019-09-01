@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <vector>
 #include <array>
+#include <bitset>
 
 namespace emu
 {
@@ -28,6 +29,8 @@ namespace emu
 			ETI660,
 		};
 		
+		using KeyboardState = std::bitset<16>;
+		
 	public:
 		CHIP8();
 		
@@ -35,6 +38,7 @@ namespace emu
 		bool Load(const ROM& rom, Program type);
 		void Step(std::size_t instructions);
 		void Tick();
+		void SetKeyboardState(KeyboardState state) { mKeyboard = state; }
 		bool PlayingSound() const { return mSoundTimer > 0; }
 		void Dump() const;
 		bool NeedsRedraw() const;
@@ -87,6 +91,9 @@ namespace emu
 		
 		Register mDelayTimer;
 		Register mSoundTimer;
+		
+		std::bitset<16> mKeyboard;
+		uint8_t mKeyboardRegister; // 0xFF indicates not waiting
 		
 		std::array<Address, 24> mStackFrames;
 		size_t mStack;
