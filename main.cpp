@@ -69,12 +69,9 @@ int main(int argc, char**argv)
 	size_t step = 0;
 	while (true)
 	{
+		// Step
 		chip8.Step(1);
 		//chip8.Dump();
-		if (chip8.NeedsRedraw())
-		{
-			chip8.Draw();
-		}
 		step++;
 		
 		// Run this at ~1kHz
@@ -85,6 +82,10 @@ int main(int argc, char**argv)
 		if ((step % 20) == 19)
 		{
 			chip8.Tick();
+			if (chip8.NeedsRedraw())
+			{
+				chip8.Draw();
+			}
 		}
 	}
 	
