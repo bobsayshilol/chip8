@@ -608,6 +608,21 @@ namespace emu
 			break;
 			
 			
+			case 0x33:
+			{
+				if (mI + 3 > mRAM.size())
+				{
+					OnError("Storing to I outside of RAM");
+				}
+				auto * ptr = reinterpret_cast<uint8_t*>(&mRAM[mI]);
+				
+				ptr[0] = (val / 100) % 10;
+				ptr[1] = (val /  10) % 10;
+				ptr[2] = (val /   1) % 10;
+			}
+			break;
+			
+			
 			case 0x55:
 			{
 				if (mI + reg > mRAM.size())
