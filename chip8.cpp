@@ -534,7 +534,7 @@ namespace emu
 			{
 				if (rx == 0xF || ry == 0xF) OnError("Ordering");
 				const bool borrow = x < y;
-				x += y;
+				x -= y;
 				mRegisters[0xF] = borrow ? 0 : 1;
 			}
 			break;
