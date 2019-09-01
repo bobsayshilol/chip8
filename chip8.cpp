@@ -241,24 +241,24 @@ namespace emu
 			{
 				printf("\t");
 			}
-			printf("\tV%zX: 0x%02x", i, mRegisters[i]);
+			printf("\tV%zX: 0x%02X", i, mRegisters[i]);
 			if ((i & 3) == 3)
 			{
 				printf("\n");
 			}
 		}
 		printf("\t");
-		printf("\tPC: 0x%02x", mPC);
-		printf("\tI:  0x%02x", mI);
-		printf("\tD:  0x%02x", mDelayTimer);
-		printf("\tS:  0x%02x", mSoundTimer);
+		printf("\tPC: 0x%02X", mPC);
+		printf("\tI:  0x%02X", mI);
+		printf("\tD:  0x%02X", mDelayTimer);
+		printf("\tS:  0x%02X", mSoundTimer);
 		printf("\n");
 		
 		// Stack
 		printf("\tStack (%zu frames):\n", mStack);
 		for (size_t i = 0; i < mStack; i++)
 		{
-			printf("\t\t%zu:\t0x%03x\n", i, mStackFrames[i]);
+			printf("\t\t%zu:\t0x%03X\n", i, mStackFrames[i]);
 		}
 	}
 	
